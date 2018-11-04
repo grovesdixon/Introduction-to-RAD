@@ -3,7 +3,7 @@ library(ggplot2)
 library(cowplot)
 library(tidyverse)
 
-setwd('~/intro_to_rad_2018/pungitius_exercise')
+setwd('~/Introduction-to-RAD/pungitius_exercise')
 
 #load data
 names = read.table('admixNames.txt')$V1
@@ -20,14 +20,16 @@ chr1 = readin('chr1.3.Q')
 par = readin('PAR.3.Q')
 sdr = readin('SDR.3.Q')
 
-#load sample data
+
+
+#load sample information
 sdat = read.table('sample_data.txt')
 colnames(sdat) = c('sample', 'sex')
 malePun = as.character(sdat$sample[grepl('Pun', sdat$sample) & sdat$sex=='M'])
 femalePun = as.character(sdat$sample[grepl('Pun', sdat$sample) & sdat$sex=='F'])
 
 
-
+#build plots
 
 p1 <- chr1 %>% 
 	gather(key='spp', value='mix', Tym, Pun, Sin) %>%

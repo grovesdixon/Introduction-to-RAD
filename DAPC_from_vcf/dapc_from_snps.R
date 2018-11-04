@@ -9,7 +9,7 @@ library(scales)
 
 
 #set working directory
-workingDir = "~/intro_to_rad_2018/DAPC_from_vcf"
+workingDir = "~/Introduction-to-RAD/DAPC_from_vcf"
 setwd(workingDir)
 
 

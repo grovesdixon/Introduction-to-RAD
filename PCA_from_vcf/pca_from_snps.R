@@ -13,7 +13,7 @@ library(adegenet)
 
 
 #set working directory
-workingDir = "~/intro_to_rad_2018/PCA_from_vcf"
+workingDir = "~/Introduction-to-RAD/PCA_from_vcf"
 setwd(workingDir)
 
 
