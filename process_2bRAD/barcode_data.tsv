@@ -1,0 +1,5 @@
+group	sample	 ligBC Number	ligation BC	pcr_barcode_N	pcr_barcode
+A	MCNA1	2	GTCT 	81	CTGCAG
+A	MCNA2	3	TGGT	81	CTGCAG
+B	MCNA3	2	GTCT 	82	GAAGTT
+B	MCNA4	3	TGGT	82	GAAGTT
