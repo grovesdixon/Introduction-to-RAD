@@ -1,0 +1,244 @@
+Stampede2 instructions for Tjarno 2018 RAD analysis workshop
+=============================================
+
+# ------------------------------------
+# downloading and installing  2bRAD scripts in $HOME/bin 
+cd
+mkdir bin 
+cd ~/bin 
+# cloning github repositories
+git clone https://github.com/z0on/2bRAD_denovo.git
+git clone https://github.com/z0on/2bRAD_GATK.git
+# move scripts to ~/bin from sub-directories
+mv 2bRAD_GATK/* . 
+mv 2bRAD_denovo/* . 
+# remove now-empty directories
+rm -rf 2bRAD_denovo 
+rm -rf 2bRAD_GATK 
+
+# designating all .pl, .R, and .py files (perl, R, and python scripts) as executable
+chmod +x *.pl 
+chmod +x *.py
+chmod +x *.R
+
+# ----- configuring your environment
+
+# adding ~/bin to your $PATH; loading gmodules
+cd
+nano .bashrc
+
+# paste this where appropriate 
+   export PATH=$HOME/bin:$PATH
+
+# and this, into another section
+	module load java
+	module load Rstats
+	module load cd-hit
+	module load fastx_toolkit
+	module load picard
+	module load python
+	module load bioperl
+	module load samtools
+	module load bedtools
+	module load bowtie
+# press ctl-O, Enter, ctl-X
+
+# log out and re-login to make sure .bashrc changes took effect
+
+# does it work?
+# try running a script from $HOME:
+cd
+2bRAD_bowtie2_launch.pl
+bowtie2
+# if you get "command not found" something is wrong 
+
+#------------ OTHER INSTALLATIONS:
+
+# ------- ANGSD: 
+
+# install xz first from https://tukaani.org/xz/
+cd
+wget https://tukaani.org/xz/xz-5.2.3.tar.gz --no-check-certificate
+tar vxf xz-5.2.3.tar.gz 
+cd xz-5.2.3/
+./configure --prefix=$HOME/xz-5.2.3/
+make
+make install
+
+# edit .bashrc:
+cdh
+nano .bashrc
+
+#paste these at very bottom of file
+   export LD_LIBRARY_PATH=$HOME/xz-5.2.3/lib:$LD_LIBRARY_PATH
+   export LIBRARY_PATH=$HOME/xz-5.2.3/lib:$LIBRARY_PATH
+   export C_INCLUDE_PATH=$HOME/xz-5.2.3/include:$C_INCLUDE_PATH
+
+#source the .bashrc to activate these variables
+source .bashrc
+
+#check
+echo $LD_LIBRARY_PATH
+
+# now, install htslib:
+cd
+git clone https://github.com/samtools/htslib.git
+cd htslib
+make CFLAGS=" -g -Wall -O2 -D_GNU_SOURCE -I$HOME/xz-5.2.3/include"
+
+cd
+git clone https://github.com/ANGSD/angsd.git 
+cd angsd
+make HTSSRC=../htslib
+
+# now adding ANGSD to $PATH
+cd
+nano .bashrc
+# section 2:
+   export PATH=$HOME/angsd:$PATH
+   export PATH=$HOME/angsd/misc:$PATH
+# save (Ctl-O, Ctl-X)
+
+-------  ngsRelate :
+cd 
+git clone https://github.com/ANGSD/NgsRelate.git
+cd NgsRelate
+make HTSSRC=../htslib
+cp ngs* ~/bin/
+cd
+
+------- Moments: 
+
+cd
+git clone https://bitbucket.org/simongravel/moments.git 
+cd moments
+python setup.py build_ext --inplace
+
+# add this to .bashrc, section 2:
+  export PYTHONPATH=$PYTHONPATH:$HOME/moments
+
+
+cdh
+source .bashrc
+
+# to see if it worked:
+python
+import moments
+
+
+
+#Finally, add two more variables to .bashrc
+email="YOUR_EMAIL_ADDRESS"
+allo="YOU_ALLOCATION"
+
+
+# ==============================================
+#   Montastrea cavernosa: micro-environmental specialization
+ 
+# genome placement
+
+cdw 
+mkdir db
+cd db
+wget https://wikis.utexas.edu/download/attachments/206527244/Mcav_genome_03012018.tgz?version=1&modificationDate=1541354699000&api=v2
+
+#rename the file to Mcav_genome_03012018.tgz
+
+
+# unpack the archive
+tar vxf Mcav_genome_03012018.tgz
+
+# getting M.cavernosa annotations (skip this bit for now)
+wget https://wikis.utexas.edu/download/attachments/206527244/Mcavernosa_gene_annotation.tar.gz?version=1&modificationDate=1541354698000&api=v2
+
+#rename to Mcavernosa_gene_annotation.tar.gz
+tar vxf Mcavernosa_gene_annotation.tar.gz
+# extracting gene regions 
+cat Mcavernosa_gene_annotation/Mcavernosa.maker.coding.gff3 | awk ' $3=="gene"' | cut -f 1,4,5 >mcav_gene_regions.tab
+# GO terms
+cat Mcavernosa_gene_annotation/Mcavernosa_euk.emapper.annotations | cut -f 1,6 >mcav_go.txt
+# gene names
+cat Mcavernosa_gene_annotation/Mcavernosa_euk.emapper.annotations | cut -f 1,13 >mcav_gnames.txt
+
+export GENOME_FASTA=$WORK/db/Mcavernosa_03012018.fasta
+export GENOME_DICT=$WORK/db/Mcavernosa_03012018.fasta 
+module load bowtie
+
+# indexing genome for bowtie2 mapper
+echo 'bowtie2-build $GENOME_FASTA $GENOME_FASTA' >btb
+launcher_creator.py -j btb -n btb -t 1:00:00 -a $allo -e $email -q normal -w 1
+sbatch btb.slurm
+
+module load samtools
+samtools faidx $GENOME_FASTA
+
+module load picard
+export GENOME_DICT=$WORK/db/Mcavernosa_03012018.dict 
+java -jar $TACC_PICARD_DIR/build/libs/picard.jar CreateSequenceDictionary R=$GENOME_FASTA  O=$GENOME_DICT
+
+#-------------------
+# downloading and unpacking trimmed M.cavernosa reads
+#note these are reduced to only 1e6 reads each, so not a full dataset,
+#but big enough to get the feel for full pipeline
+
+cds
+cd mcav_full
+wget https://www.dropbox.com/s/cy0vrtyj6g4rwbc/mcav_reads.zip?dl=0
+#note this link will probably stop working
+#contact grovesdixon@gmail.com for alternative access
+
+#rename the file to mcav_reads.zip
+#then decompress
+
+
+# unpacking all files and selecting top 1m reads, in parallel (try with -w 272 )
+>gunz
+for F in `ls *gz`; do echo "gunzip $F &" >> gunz; done
+launcher_creator.py -j gunz -n gunz -t 0:10:00 -w 272 -a $allo -e $email
+sbatch gunz.slurm
+
+
+#------------------------
+# mapping to genome
+
+export GENOME_FASTA=$WORK/db/Mcavernosa_03012018.fasta
+2bRAD_bowtie2_launch.pl '\.1m$' $GENOME_FASTA > bt2
+launcher_creator.py -j bt22 -n maps -t 2:00:00 -w 64 -a tagmap -e matz@utexas.edu
+sbatch maps.slurm
+
+ls *.bt2.sam > sams
+cat sams | wc -l  # number should match number of fastq files: 
+ls *.fastq | wc -l
+
+# find mapping efficiency for a particular input file (MCDA1.fastq in this case)
+grep -E "^[ATGCN]+$" MCDA1.fastq | wc -l | grep -f - maps.e* -A 4
+
+# for all files:
+>alignmentRates
+for F in `ls *fastq`; do 
+M=`grep -E '^[ATGCN]+$' $F | wc -l | grep -f - maps.e* -A 4 | tail -1 | perl -pe 's/maps\.e\d+-|% overall alignment rate//g'` ;
+echo "$F.bt2.sam $M">>alignmentRates;
+done
+
+# "good" samples with mapping efficiencies >25%
+awk '$2>=25' alignmentRates | cut -f 1 -d " " | sort | uniq > goods
+# "bad" samples with mapping efficiencies <25%
+awk '$2<25' alignmentRates | cut -f 1 -d " " > bads
+# >>> count (using unix one-liners) how many good and bad files we have
+
+### proceeding to bams only with samples with mapping efficiency >25% ###
+
+# making and sorting bam files (compressed sam files)
+
+export GENOME_REF=$WORK/db/Mcavernosa_03012018.fasta
+module load picard
+module load samtools
+
+cat goods | perl -pe 's/(\S+)\.sam/samtools import \$GENOME_REF $1\.sam $1\.unsorted\.bam && samtools sort -o $1\.sorted\.bam $1\.unsorted\.bam && java -Xmx5g -jar \$TACC_PICARD_DIR\/build\/libs\/picard\.jar AddOrReplaceReadGroups INPUT=$1\.sorted\.bam OUTPUT=$1\.bam RGID=group1 RGLB=lib1 RGPL=illumina RGPU=unit1 RGSM=$1 && samtools index $1\.bam/' >s2b
+launcher_creator.py -j s2b -n s2b -q normal -t 1:00:00 -w 12 -a tagmap -e matz@utexas.edu
+sbatch s2b.slurm
+
+rm *sorted*
+ls *bam | wc -l  # should be the same number as number of goods
+ls *bam >bams
+
